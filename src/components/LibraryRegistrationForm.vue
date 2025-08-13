@@ -3,43 +3,76 @@ import { ref } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 
+// 表单数据
 const formData = ref({
   username: '',
   password: '',
+  confirmPassword: '',
   isAustralian: false,
   reason: '',
-  gender: ''
+  gender: '',
+  suburb: 'Clayton' // ✅ 新增 suburb，默认值
 })
 
-const submittedCards = ref([])
-
-const submitForm = () => {
-  validateName(true)
-  validatePassword(true)
-  if (!errors.value.username && !errors.value.password) {
-    submittedCards.value.push({ ...formData.value })
-    clearForm()
-  }
-}
-
-const clearForm = () => {
-  formData.value = {
-    username: '',
-    password: '',
-    isAustralian: false,
-    reason: '',
-    gender: ''
-  }
-}
-
+// 错误信息
 const errors = ref({
   username: null,
   password: null,
+  confirmPassword: null,
   resident: null,
   gender: null,
   reason: null
 })
 
+// ✅ 提示文本（如包含 friend）
+const reasonMessage = ref('')
+
+// 提交数据
+const submittedCards = ref([])
+
+// 表单提交
+const submitForm = () => {
+  validateName(true)
+  validatePassword(true)
+  validateConfirmPassword(true)
+  validateReason()
+
+  if (
+    !errors.value.username &&
+    !errors.value.password &&
+    !errors.value.confirmPassword &&
+    !errors.value.reason
+  ) {
+    submittedCards.value.push({ ...formData.value })
+    clearForm()
+  }
+}
+
+// 清空表单
+const clearForm = () => {
+  formData.value = {
+    username: '',
+    password: '',
+    confirmPassword: '',
+    isAustralian: false,
+    reason: '',
+    gender: '',
+    suburb: 'Clayton' // 重置默认值
+  }
+
+  errors.value = {
+    username: null,
+    password: null,
+    confirmPassword: null,
+    resident: null,
+    gender: null,
+    reason: null
+  }
+
+  reasonMessage.value = ''
+}
+
+// 用户名验证
 const validateName = (blur) => {
   if (formData.value.username.length < 3) {
     if (blur) errors.value.username = 'Name must be at least 3 characters'
@@ -48,6 +81,7 @@ const validateName = (blur) => {
   }
 }
 
+// 密码验证
 const validatePassword = (blur) => {
   const password = formData.value.password
   const minLength = 8
@@ -70,10 +104,34 @@ const validatePassword = (blur) => {
     errors.value.password = null
   }
 }
+
+// 确认密码验证
+const validateConfirmPassword = (blur) => {
+  if (formData.value.password !== formData.value.confirmPassword) {
+    if (blur) errors.value.confirmPassword = 'Passwords do not match.'
+  } else {
+    errors.value.confirmPassword = null
+  }
+}
+
+// ✅ 原因验证（含 “friend” 检查）
+const validateReason = () => {
+  const text = formData.value.reason.trim()
+  if (text.length < 10) {
+    errors.value.reason = 'Reason must be at least 10 characters'
+    reasonMessage.value = ''
+  } else {
+    errors.value.reason = null
+    if (text.toLowerCase().includes('friend')) {
+      reasonMessage.value = 'Great to have a friend'
+    } else {
+      reasonMessage.value = ''
+    }
+  }
+}
 </script>
 
 <template>
-  <!-- 🗄️ W3. Library Registration Form -->
   <div class="container mt-5">
     <div class="row">
       <div class="col-md-8 offset-md-2">
@@ -83,6 +141,7 @@ const validatePassword = (blur) => {
           (PrimeVue).
         </p>
         <form @submit.prevent="submitForm">
+          <!-- 用户名 & 密码 -->
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
               <label for="username" class="form-label">Username</label>
@@ -110,6 +169,25 @@ const validatePassword = (blur) => {
               <div v-if="errors.password" class="text-danger">{{ errors.password }}</div>
             </div>
           </div>
+
+          <!-- 确认密码 -->
+          <div class="row mb-3">
+            <div class="col-md-6 col-sm-6">
+              <label for="confirm-password" class="form-label">Confirm Password</label>
+              <input
+                type="password"
+                class="form-control"
+                id="confirm-password"
+                v-model="formData.confirmPassword"
+                @blur="() => validateConfirmPassword(true)"
+              />
+              <div v-if="errors.confirmPassword" class="text-danger">
+                {{ errors.confirmPassword }}
+              </div>
+            </div>
+          </div>
+
+          <!-- 居民 & 性别 -->
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
               <div class="form-check">
@@ -125,12 +203,15 @@ const validatePassword = (blur) => {
             <div class="col-md-6 col-sm-6">
               <label for="gender" class="form-label">Gender</label>
               <select class="form-select" id="gender" v-model="formData.gender" required>
+                <option disabled value="">Select Gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
             </div>
           </div>
+
+          <!-- 原因 -->
           <div class="mb-3">
             <label for="reason" class="form-label">Reason for joining</label>
             <textarea
@@ -138,8 +219,25 @@ const validatePassword = (blur) => {
               id="reason"
               rows="3"
               v-model="formData.reason"
+              @input="validateReason"
+              @blur="validateReason"
             ></textarea>
+            <div v-if="errors.reason" class="text-danger">{{ errors.reason }}</div>
+            <div v-if="reasonMessage" class="text-success">{{ reasonMessage }}</div>
           </div>
+
+          <!-- ✅ 新增：Suburb（双向绑定） -->
+          <div class="mb-3">
+            <label for="suburb" class="form-label">Suburb</label>
+            <input
+              type="text"
+              class="form-control"
+              id="suburb"
+              v-model="formData.suburb"
+            />
+          </div>
+
+          <!-- 按钮 -->
           <div class="text-center">
             <button type="submit" class="btn btn-primary me-2">Submit</button>
             <button type="button" class="btn btn-secondary" @click="clearForm">Clear</button>
@@ -149,6 +247,7 @@ const validatePassword = (blur) => {
     </div>
   </div>
 
+  <!-- 数据展示 -->
   <div class="row mt-5">
     <h4>This is a Primevue Datatable.</h4>
     <DataTable :value="submittedCards" tableStyle="min-width: 50rem">
@@ -157,29 +256,8 @@ const validatePassword = (blur) => {
       <Column field="isAustralian" header="Australian Resident"></Column>
       <Column field="gender" header="Gender"></Column>
       <Column field="reason" header="Reason"></Column>
+      <Column field="suburb" header="Suburb"></Column> <!-- ✅ 展示 suburb -->
     </DataTable>
-  </div>
-
-  <div class="row mt-5" v-if="submittedCards.length">
-    <div class="d-flex flex-wrap justify-content-start">
-      <div
-        v-for="(card, index) in submittedCards"
-        :key="index"
-        class="card m-2"
-        style="width: 18rem"
-      >
-        <div class="card-header">User Information</div>
-        <ul class="list-group list-group-flush">
-          <li class="list-group-item">Username: {{ card.username }}</li>
-          <li class="list-group-item">Password: {{ card.password }}</li>
-          <li class="list-group-item">
-            Australian Resident: {{ card.isAustralian ? 'Yes' : 'No' }}
-          </li>
-          <li class="list-group-item">Gender: {{ card.gender }}</li>
-          <li class="list-group-item">Reason: {{ card.reason }}</li>
-        </ul>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -189,31 +267,22 @@ const validatePassword = (blur) => {
   max-width: 80vw;
   margin: 0 auto;
   padding: 20px;
-  /* background-color: #e0bfbf; */
   border-radius: 10px;
 }
 
-/* Class selectors */
-.form {
-  text-align: center;
-  margin-top: 50px;
-}
-
-/* ID selectors */
-#username:focus,
-#password:focus,
-#isAustralian:focus,
 .card {
   border: 1px solid #ccc;
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
 .card-header {
   background-color: #275fda;
   color: white;
   padding: 10px;
   border-radius: 10px 10px 0 0;
 }
+
 .list-group-item {
   padding: 10px;
 }
